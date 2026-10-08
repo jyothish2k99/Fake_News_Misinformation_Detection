@@ -32,6 +32,8 @@ def preprocess_text(text):
 
     # Remove URLs
     text = re.sub(r"http\S+|www\S+", "", text)
+    # Remove source markers such as Reuters
+    text = re.sub(r"\(reuters\)", "", text, flags=re.IGNORECASE)
 
     # Remove punctuation and special characters
     text = re.sub(r"[^a-zA-Z\s]", " ", text)
@@ -79,6 +81,10 @@ data = pd.concat(
 
 # Remove duplicate rows
 data = data.drop_duplicates()
+# Remove duplicate article texts
+data = data.drop_duplicates(
+    subset=["text"]
+)
 
 
 # ==============================

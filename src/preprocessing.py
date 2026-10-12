@@ -1,122 +1,60 @@
+"""Step 1: load raw CSVs -> label -> remove duplicates -> clean text -> save.
+
+Run from the repo root:
+    python src/preprocessing.py
+Input : data/True.csv, data/Fake.csv
+Output: data/processed_news.csv
+"""
 import pandas as pd
-import re
-import nltk
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
+from settings import PROCESSED_CSV, RAW_FAKE, RAW_TRUE
+from text_utils import preprocess_text
 
+MIN_CLEAN_WORDS = 5   # drop articles that are (almost) empty after cleaning
 
-# Download required NLTK resources
-nltk.download("punkt")
-nltk.download("punkt_tab")
-nltk.download("stopwords")
-nltk.download("wordnet")
-nltk.download("omw-1.4")
-
-
-# Load NLP tools
-stop_words = set(stopwords.words("english"))
-lemmatizer = WordNetLemmatizer()
-
-
-# Text preprocessing function
-def preprocess_text(text):
-
-    # Handle missing or non-text values
-    if not isinstance(text, str):
-        return ""
-
-    # Convert text to lowercase
-    text = text.lower()
-
-    # Remove URLs
-    text = re.sub(r"http\S+|www\S+", "", text)
-    # Remove source markers such as Reuters
-    text = re.sub(r"\(reuters\)", "", text, flags=re.IGNORECASE)
-
-    # Remove punctuation and special characters
-    text = re.sub(r"[^a-zA-Z\s]", " ", text)
-
-    # Tokenize
-    tokens = word_tokenize(text)
-
-    # Remove stopwords
-    tokens = [
-        word for word in tokens
-        if word not in stop_words
-    ]
-
-    # Lemmatize
-    tokens = [
-        lemmatizer.lemmatize(word)
-        for word in tokens
-    ]
-
-    # Join words back into text
-    cleaned_text = " ".join(tokens)
-
-    return cleaned_text
-
-
-# ==============================
-# LOAD DATASETS
-# ==============================
-
-true_data = pd.read_csv("data/True.csv")
-fake_data = pd.read_csv("data/Fake.csv")
-
-
-# Add labels
+# ------------------------------------------------------------------ load
+true_data = pd.read_csv(RAW_TRUE)
+fake_data = pd.read_csv(RAW_FAKE)
 true_data["label"] = "REAL"
 fake_data["label"] = "FAKE"
 
+data = pd.concat([true_data, fake_data], ignore_index=True)
+print("Loaded rows:", len(data))
 
-# Combine both datasets
-data = pd.concat(
-    [true_data, fake_data],
-    ignore_index=True
-)
-
-
-# Remove duplicate rows
+# ------------------------------------------------ duplicates (raw text)
 data = data.drop_duplicates()
-# Remove duplicate article texts
-data = data.drop_duplicates(
-    subset=["text"]
-)
+data = data.drop_duplicates(subset=["text"])
+print("After removing duplicate rows / raw texts:", len(data))
 
-
-# ==============================
-# TEXT PREPROCESSING
-# ==============================
-
+# ------------------------------------------------------------- cleaning
 data["cleaned_text"] = data["text"].apply(preprocess_text)
 
+# Some articles are empty (title only) or become empty after cleaning.
+data["clean_word_count"] = data["cleaned_text"].str.split().str.len()
+before = len(data)
+data = data[data["clean_word_count"] >= MIN_CLEAN_WORDS]
+print(f"Dropped {before - len(data)} articles with < {MIN_CLEAN_WORDS} words after cleaning")
 
-# ==============================
-# CHECK RESULTS
-# ==============================
+# ------------------------- duplicates AFTER cleaning (prevents train/test leak)
+before = len(data)
+data = data.drop_duplicates(subset=["cleaned_text", "label"])
+print("Removed near-duplicates (same cleaned text, same label):", before - len(data))
 
-print("Dataset shape:", data.shape)
+# Same cleaned text with BOTH labels is ambiguous -> remove all copies.
+label_per_text = data.groupby("cleaned_text")["label"].transform("nunique")
+conflicts = int((label_per_text > 1).sum())
+data = data[label_per_text == 1]
+print("Removed rows whose text appears with conflicting labels:", conflicts)
 
+data = data.drop(columns=["clean_word_count"]).reset_index(drop=True)
+data.insert(0, "article_id", data.index)   # stable id, reused for train/test splits
+
+# ---------------------------------------------------------------- report
+print("\nFinal dataset shape:", data.shape)
 print("\nLabel distribution:")
 print(data["label"].value_counts())
+print("\nOriginal text:\n", data["text"].iloc[0][:300])
+print("\nCleaned text:\n", data["cleaned_text"].iloc[0][:300])
 
-print("\nOriginal text:")
-print(data["text"].iloc[0])
-
-print("\nCleaned text:")
-print(data["cleaned_text"].iloc[0])
-
-
-# ==============================
-# SAVE PROCESSED DATASET
-# ==============================
-
-data.to_csv(
-    "data/processed_news.csv",
-    index=False
-)
-
-print("\nProcessed dataset saved successfully!")
+data.to_csv(PROCESSED_CSV, index=False)
+print(f"\nProcessed dataset saved to {PROCESSED_CSV}")

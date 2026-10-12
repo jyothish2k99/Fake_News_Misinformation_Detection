@@ -1,86 +1,75 @@
-import pandas as pd
-import joblib
+"""Step 5: baseline model = TF-IDF + Logistic Regression.
 
-from sklearn.model_selection import train_test_split
+Run: python src/model_training.py
+Input : data/processed_news.csv
+Output: models/model.pkl, models/tfidf_vectorizer.pkl,
+        results/split_ids.csv  (reuse the SAME split for DistilBERT in week 2),
+        results/evaluation_results.csv
+"""
+import joblib
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 
+from settings import (MODEL_PATH, PROCESSED_CSV, RANDOM_STATE, RESULTS_DIR,
+                      TFIDF_PATH)
 
-# Load processed dataset
-data = pd.read_csv("data/features_news.csv")
+data = pd.read_csv(PROCESSED_CSV, usecols=["article_id", "cleaned_text", "label"])
+data = data.dropna(subset=["cleaned_text"]).reset_index(drop=True)
 
-
-# Remove rows with missing text
-data = data.dropna(subset=["cleaned_text"])
-
-
-# Input and output
-X = data["cleaned_text"]
-y = data["label"]
-
-
-# Split dataset into training and testing data
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42,
-    stratify=y
+# ---------------------------------------------------------- 80 / 10 / 10 split
+train_df, temp_df = train_test_split(
+    data, test_size=0.20, random_state=RANDOM_STATE, stratify=data["label"]
+)
+val_df, test_df = train_test_split(
+    temp_df, test_size=0.50, random_state=RANDOM_STATE, stratify=temp_df["label"]
 )
 
+split_ids = pd.concat([
+    train_df[["article_id"]].assign(split="train"),
+    val_df[["article_id"]].assign(split="val"),
+    test_df[["article_id"]].assign(split="test"),
+])
+split_ids.to_csv(RESULTS_DIR / "split_ids.csv", index=False)
 
-# Create TF-IDF vectorizer
+# --------------------------------------------------------------------- TF-IDF
+# Fit ONLY on training data (fitting on everything would leak test vocabulary).
 tfidf = TfidfVectorizer(
-    max_features=5000
+    ngram_range=(1, 2), max_features=50000, min_df=5, sublinear_tf=True
 )
+X_train = tfidf.fit_transform(train_df["cleaned_text"])
+X_val = tfidf.transform(val_df["cleaned_text"])
+X_test = tfidf.transform(test_df["cleaned_text"])
+
+# ----------------------------------------------------------------- model
+model = LogisticRegression(max_iter=1000, random_state=RANDOM_STATE)
+model.fit(X_train, train_df["label"])
+
+fake_idx = list(model.classes_).index("FAKE")
 
 
-# Convert text into numerical features
-X_train_tfidf = tfidf.fit_transform(X_train)
-X_test_tfidf = tfidf.transform(X_test)
+def predictions(df, X, name):
+    out = pd.DataFrame({
+        "article_id": df["article_id"].values,
+        "split": name,
+        "actual": df["label"].values,
+        "predicted": model.predict(X),
+        "prob_fake": model.predict_proba(X)[:, fake_idx],
+    })
+    return out
 
 
-# Create Logistic Regression model
-model = LogisticRegression(
-    max_iter=1000
-)
+results = pd.concat([predictions(val_df, X_val, "val"),
+                     predictions(test_df, X_test, "test")])
+results.to_csv(RESULTS_DIR / "evaluation_results.csv", index=False)
 
+joblib.dump(model, MODEL_PATH)
+joblib.dump(tfidf, TFIDF_PATH)
 
-# Train the model
-model.fit(X_train_tfidf, y_train)
-
-
-# Make predictions
-y_pred = model.predict(X_test_tfidf)
-
-
-# Save model and TF-IDF vectorizer
-joblib.dump(model, "model.pkl")
-joblib.dump(tfidf, "tfidf_vectorizer.pkl")
-
-
-# Save test data and predictions for evaluation
-evaluation_data = pd.DataFrame({
-    "actual": y_test.values,
-    "predicted": y_pred
-})
-
-evaluation_data.to_csv(
-    "data/evaluation_results.csv",
-    index=False
-)
-
-
-# Display results
-print("Training samples:", X_train.shape[0])
-print("Testing samples:", X_test.shape[0])
-
-print("\nTF-IDF shape:")
-print(X_train_tfidf.shape)
-
-print("\nFirst 10 predictions:")
-print(y_pred[:10])
-
-print("\nModel saved successfully!")
-print("TF-IDF vectorizer saved successfully!")
-print("Evaluation data saved successfully!")
+print("Training samples  :", X_train.shape[0])
+print("Validation samples:", X_val.shape[0])
+print("Testing samples   :", X_test.shape[0])
+print("TF-IDF shape      :", X_train.shape)
+print("\nModel, vectorizer, split ids and predictions saved.")
+print("Now run: python src/evaluation.py")

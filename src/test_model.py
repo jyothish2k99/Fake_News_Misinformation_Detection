@@ -1,79 +1,33 @@
+"""Step 8: try the baseline on any text, with a confidence percentage.
+
+Run: python src/test_model.py
+(predict_news() is also what the Streamlit app will import in week 3.)
+"""
 import joblib
-import re
-import nltk
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
+from settings import MODEL_PATH, TFIDF_PATH
+from text_utils import preprocess_text
 
-nltk.download("punkt")
-nltk.download("punkt_tab")
-nltk.download("stopwords")
-nltk.download("wordnet")
-nltk.download("omw-1.4")
-
-stop_words = set(stopwords.words("english"))
-lemmatizer = WordNetLemmatizer()
+_model = _tfidf = None
 
 
-def preprocess_text(text):
-
-    text = text.lower()
-
-    text = re.sub(
-        r"http\S+|www\S+",
-        "",
-        text
-    )
-
-    text = re.sub(
-        r"\(reuters\)",
-        "",
-        text,
-        flags=re.IGNORECASE
-    )
-
-    text = re.sub(
-        r"[^a-zA-Z\s]",
-        " ",
-        text
-    )
-
-    tokens = word_tokenize(text)
-
-    tokens = [
-        word for word in tokens
-        if word not in stop_words
-    ]
-
-    tokens = [
-        lemmatizer.lemmatize(word)
-        for word in tokens
-    ]
-
-    return " ".join(tokens)
+def predict_news(text):
+    """Return (label, confidence_percent, prob_fake_percent)."""
+    global _model, _tfidf
+    if _model is None:
+        _model = joblib.load(MODEL_PATH)
+        _tfidf = joblib.load(TFIDF_PATH)
+    cleaned = preprocess_text(text)          # SAME cleaning as training
+    probs = _model.predict_proba(_tfidf.transform([cleaned]))[0]
+    prob = dict(zip(_model.classes_, probs))
+    label = max(prob, key=prob.get)
+    return label, round(100 * prob[label], 1), round(100 * prob["FAKE"], 1)
 
 
-# Load model and TF-IDF
-model = joblib.load("model.pkl")
-tfidf = joblib.load("tfidf_vectorizer.pkl")
-
-
-# Get news from user
-news = input("\nEnter news text: ")
-
-
-# Apply same preprocessing used during training
-cleaned_news = preprocess_text(news)
-
-
-# Convert to TF-IDF
-news_tfidf = tfidf.transform([cleaned_news])
-
-
-# Predict
-prediction = model.predict(news_tfidf)[0]
-
-
-print("\nPrediction:", prediction)
-
+if __name__ == "__main__":
+    news = input("\nEnter news text: ")
+    if not news.strip():
+        raise SystemExit("No text entered.")
+    label, confidence, prob_fake = predict_news(news)
+    print(f"\nPrediction: {label} ({confidence}% confidence)")
+    print(f"Probability of being FAKE: {prob_fake}%")

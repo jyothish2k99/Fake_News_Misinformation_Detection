@@ -1,120 +1,87 @@
-import pandas as pd
+"""Step 3: EDA charts + summary table (Fake vs Real).
+
+Run: python src/eda.py
+Input : data/features_news.csv
+Output: results/figures/*.png, results/eda_summary.csv
+"""
+import matplotlib
+matplotlib.use("Agg")                     # save charts without opening windows
 import matplotlib.pyplot as plt
+import pandas as pd
+
+from settings import FEATURES_CSV, FIGURES_DIR, RESULTS_DIR
+
+data = pd.read_csv(FEATURES_CSV)
+COLORS = {"FAKE": "#d62728", "REAL": "#1f77b4"}
 
 
-# Load feature dataset
-data = pd.read_csv("data/features_news.csv")
+def save(name):
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / name, dpi=150)
+    plt.close()
 
 
-# ==============================
-# 1. FAKE vs REAL DISTRIBUTION
-# ==============================
-
-label_counts = data["label"].value_counts()
-
-plt.figure(figsize=(6, 4))
-label_counts.plot(kind="bar")
-
+# 1. Class balance --------------------------------------------------------
+counts = data["label"].value_counts()
+plt.figure(figsize=(5, 4))
+plt.bar(counts.index, counts.values, color=[COLORS[l] for l in counts.index])
 plt.title("Fake vs Real News Distribution")
-plt.xlabel("News Label")
-plt.ylabel("Number of Articles")
-plt.xticks(rotation=0)
+plt.ylabel("Number of articles")
+save("fake_vs_real_distribution.png")
 
-plt.tight_layout()
-plt.savefig("data/fake_vs_real_distribution.png")
-plt.show()
-
-
-# ==============================
-# 2. WORD COUNT DISTRIBUTION
-# ==============================
-
-plt.figure(figsize=(8, 5))
-
-data[data["label"] == "FAKE"]["word_count"].plot(
-    kind="hist",
-    bins=30,
-    alpha=0.6,
-    label="FAKE"
-)
-
-data[data["label"] == "REAL"]["word_count"].plot(
-    kind="hist",
-    bins=30,
-    alpha=0.6,
-    label="REAL"
-)
-
-plt.title("Word Count Distribution")
-plt.xlabel("Word Count")
-plt.ylabel("Number of Articles")
-plt.legend()
-
-plt.tight_layout()
-plt.savefig("data/word_count_distribution.png")
-plt.show()
+# 2. Histogram of a feature for both classes ------------------------------
+def hist(col, title, xlabel, clip_q=0.99, bins=40):
+    plt.figure(figsize=(7, 4.5))
+    upper = data[col].quantile(clip_q)            # clip extreme outliers
+    for label in ("FAKE", "REAL"):
+        vals = data.loc[data["label"] == label, col].clip(upper=upper)
+        plt.hist(vals, bins=bins, alpha=0.55, label=label, color=COLORS[label])
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel("Number of articles")
+    plt.legend()
+    save(f"hist_{col}.png")
 
 
-# ==============================
-# 3. ARTICLE LENGTH COMPARISON
-# ==============================
+hist("word_count", "Word Count Distribution", "Words")
+hist("flesch_reading_ease", "Reading Ease (higher = easier)", "Flesch reading ease")
+hist("capital_letter_ratio", "Capital Letter Ratio", "Capitals / letters")
 
-average_length = data.groupby("label")["article_length"].mean()
+# 3. Boxplots of the sensational-style features ---------------------------
+BOX = {
+    "word_count": "Words per article",
+    "exclamation_count": "Exclamation marks per article",
+    "capital_letter_ratio": "Capital letter ratio",
+    "all_caps_word_ratio": "ALL-CAPS word ratio",
+    "flesch_kincaid_grade": "Flesch-Kincaid grade level",
+    "lexical_diversity": "Lexical diversity (unique/total words)",
+}
+fig, axes = plt.subplots(2, 3, figsize=(13, 7))
+for ax, (col, title) in zip(axes.ravel(), BOX.items()):
+    groups = [data.loc[data["label"] == l, col].dropna() for l in ("FAKE", "REAL")]
+    bp = ax.boxplot(groups, showfliers=False, patch_artist=True)
+    ax.set_xticks([1, 2])
+    ax.set_xticklabels(["FAKE", "REAL"])
+    for patch, l in zip(bp["boxes"], ("FAKE", "REAL")):
+        patch.set_facecolor(COLORS[l])
+        patch.set_alpha(0.6)
+    ax.set_title(title, fontsize=10)
+save("boxplots_linguistic_features.png")
 
-plt.figure(figsize=(6, 4))
-average_length.plot(kind="bar")
+# 4. Summary table ---------------------------------------------------------
+FEATURE_COLS = [
+    "word_count", "sentence_count", "article_length", "average_word_length",
+    "unique_word_count", "lexical_diversity", "punctuation_count",
+    "exclamation_count", "exclamations_per_100_words", "question_count",
+    "capital_letter_count", "capital_letter_ratio", "all_caps_word_ratio",
+    "flesch_reading_ease", "flesch_kincaid_grade",
+]
+summary = data.groupby("label")[FEATURE_COLS].agg(["mean", "median"]).round(3)
+summary.to_csv(RESULTS_DIR / "eda_summary.csv")
 
-plt.title("Average Article Length: Fake vs Real")
-plt.xlabel("News Label")
-plt.ylabel("Average Article Length")
-plt.xticks(rotation=0)
-
-plt.tight_layout()
-plt.savefig("data/article_length_comparison.png")
-plt.show()
-
-
-# ==============================
-# 4. UNIQUE WORD COUNT
-# ==============================
-
-average_unique_words = data.groupby("label")["unique_word_count"].mean()
-
-plt.figure(figsize=(6, 4))
-average_unique_words.plot(kind="bar")
-
-plt.title("Average Unique Word Count: Fake vs Real")
-plt.xlabel("News Label")
-plt.ylabel("Average Unique Words")
-plt.xticks(rotation=0)
-
-plt.tight_layout()
-plt.savefig("data/unique_word_comparison.png")
-plt.show()
-
-
-# ==============================
-# 5. PRINT EDA SUMMARY
-# ==============================
-
-print("\n========== EDA SUMMARY ==========")
-
-print("\nNews distribution:")
-print(label_counts)
-
-print("\nAverage linguistic features:")
-print(
-    data.groupby("label")[
-        [
-            "word_count",
-            "sentence_count",
-            "article_length",
-            "average_word_length",
-            "punctuation_count",
-            "capital_letter_count",
-            "unique_word_count"
-        ]
-    ].mean()
-)
-
-print("\nEDA completed successfully!")
+print("========== EDA SUMMARY ==========")
+print("\nNews distribution:\n", counts)
+print("\nMean of each feature by label:")
+print(data.groupby("label")[FEATURE_COLS].mean().round(3).T)
+print(f"\nCharts saved in {FIGURES_DIR}")
+print("EDA completed successfully!")

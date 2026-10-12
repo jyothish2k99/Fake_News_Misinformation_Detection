@@ -1,8 +1,10 @@
 import pandas as pd
 
-# Load the datasets
-true_data = pd.read_csv("data/True.csv")
-fake_data = pd.read_csv("data/Fake.csv")
+from settings import RAW_FAKE, RAW_TRUE
+
+# Load the datasets (run from repo root: python src/dataset_check.py)
+true_data = pd.read_csv(RAW_TRUE)
+fake_data = pd.read_csv(RAW_FAKE)
 
 
 # ==============================

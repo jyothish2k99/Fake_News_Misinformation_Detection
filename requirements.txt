@@ -5,3 +5,7 @@ joblib
 nltk
 matplotlib
 jupyter
+torch 
+transformers 
+datasets 
+accelerate

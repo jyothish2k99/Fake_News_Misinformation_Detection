@@ -1,0 +1,4 @@
+model,accuracy,precision_fake,recall_fake,f1_fake,TN,FP,FN,TP,errors
+"Rule: '(Reuters)' = Real, else Fake",0.9952,0.9894,1.0,0.9947,3152,28,0,2619,28
+TF-IDF + Logistic Regression,0.9864,0.9919,0.9779,0.9848,3159,21,58,2561,79
+DistilBERT,1.0,1.0,1.0,1.0,3180,0,0,2619,0

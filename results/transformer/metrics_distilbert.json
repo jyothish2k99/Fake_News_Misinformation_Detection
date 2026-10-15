@@ -1,0 +1,37 @@
+{
+  "val": {
+    "accuracy": 1.0,
+    "precision_fake": 1.0,
+    "recall_fake": 1.0,
+    "f1_fake": 1.0,
+    "confusion_matrix": [
+      [
+        3180,
+        0
+      ],
+      [
+        0,
+        2619
+      ]
+    ]
+  },
+  "test": {
+    "accuracy": 1.0,
+    "precision_fake": 1.0,
+    "recall_fake": 1.0,
+    "f1_fake": 1.0,
+    "confusion_matrix": [
+      [
+        3180,
+        0
+      ],
+      [
+        0,
+        2619
+      ]
+    ]
+  },
+  "device": "cpu",
+  "seconds_total": 4191.2,
+  "seconds_per_article": 0.3614
+}

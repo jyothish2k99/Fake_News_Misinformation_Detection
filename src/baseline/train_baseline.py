@@ -5,7 +5,8 @@ import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import (accuracy_score, f1_score,
+                             precision_score, recall_score)
 
 from src.config import (INTERIM_DIR, PROCESSED_DIR, SPLIT_DIR,
                         MODEL_DIR, RESULTS_DIR, RANDOM_STATE)
@@ -52,8 +53,12 @@ def main(version):
     metrics = {}
     for name, X, part in [("val", X_val, val), ("test", X_test, test)]:
         pred = model.predict(X)
-        metrics[name] = {"accuracy": round(accuracy_score(part["label"], pred), 4),
-                         "f1_fake": round(f1_score(part["label"], pred), 4)}
+        metrics[name] = {
+            "accuracy": round(accuracy_score(part["label"], pred), 4),
+            "precision_fake": round(precision_score(part["label"], pred), 4),
+            "recall_fake": round(recall_score(part["label"], pred), 4),
+            "f1_fake": round(f1_score(part["label"], pred), 4),
+        }
     print(json.dumps(metrics, indent=2))
 
     # 4) Save model files and metrics

@@ -1,0 +1,14 @@
+{
+  "val": {
+    "accuracy": 0.9756,
+    "precision_fake": 0.9831,
+    "recall_fake": 0.9626,
+    "f1_fake": 0.9728
+  },
+  "test": {
+    "accuracy": 0.9764,
+    "precision_fake": 0.9812,
+    "recall_fake": 0.9664,
+    "f1_fake": 0.9738
+  }
+}

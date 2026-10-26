@@ -7,3 +7,4 @@ models/
 *.joblib
 *.pt
 *.safetensors
+data/processed/

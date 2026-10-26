@@ -21,8 +21,14 @@ def load_data(version):
         df = pd.read_csv(PROCESSED_DIR / "cleaned_dataset.csv")
         text_col = "cleaned_text"
         df[text_col] = df[text_col].fillna("")
+    n_before = len(df)
     df = df.merge(splits, on="row_id", how="inner")
-    assert len(df) == len(splits), "row_id mismatch with split.csv!"
+    assert len(df) == n_before, "some row_ids are not in split.csv!"
+    if version == "v0_raw":
+        assert len(df) == len(splits), "row_id mismatch with split.csv!"
+    else:
+        print(f"v1 uses {len(df)} of {len(splits)} articles "
+              f"({len(splits) - len(df)} not in cleaned_dataset.csv)")
     return df, text_col
 
 

@@ -1,0 +1,27 @@
+{
+  "model": "TF-IDF + Logistic Regression",
+  "dataset_rows": 20000,
+  "train_rows": 16000,
+  "test_rows": 4000,
+  "accuracy": 0.988,
+  "precision_fake": 0.9909,
+  "recall_fake": 0.985,
+  "f1_fake": 0.988,
+  "roc_auc": 0.9991,
+  "confusion_matrix": [
+    [
+      1982,
+      18
+    ],
+    [
+      30,
+      1970
+    ]
+  ],
+  "labels": {
+    "0": "REAL",
+    "1": "FAKE"
+  },
+  "random_state": 42,
+  "note": "Metrics measure performance on a held-out split of this dataset; source/domain leakage and dataset-specific artifacts may inflate results."
+}

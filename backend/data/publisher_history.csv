@@ -1,0 +1,16 @@
+publisher,real_articles,fake_articles
+reuters.com,10000,12
+apnews.com,420,18
+bbc.com,380,24
+theguardian.com,290,32
+nytimes.com,310,28
+washingtonpost.com,270,35
+cnn.com,240,55
+foxnews.com,210,72
+breitbart.com,45,210
+infowars.com,12,380
+theonion.com,2,450
+worldnewsdailyreport.com,1,320
+newspunch.com,4,290
+conservativebeaver.com,2,180
+beforeitsnews.com,8,260

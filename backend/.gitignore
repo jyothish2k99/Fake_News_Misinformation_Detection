@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+artifacts/*.joblib
+artifacts/evidence_corpus.csv
+artifacts/model_metrics.json

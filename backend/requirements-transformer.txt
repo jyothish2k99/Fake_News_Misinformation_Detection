@@ -1,0 +1,5 @@
+# Optional dependencies for the separate, offline transformer training workflow.
+# Install only when training from a model already present on disk.
+torch>=2.2
+transformers>=4.46,<5.0
+accelerate>=0.28

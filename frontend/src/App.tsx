@@ -62,6 +62,15 @@ type SourceCredibility = {
   credibility_score?: number;
   method?: string;
 };
+type TransformerPrediction = {
+  label: string;
+  fake_probability: number | null;
+  real_probability: number | null;
+  confidence: number | null;
+  error?: string;
+  disclaimer?: string;
+  model: string;
+};
 type Prediction = {
   label: string;
   fake_probability: number;
@@ -77,6 +86,7 @@ type Prediction = {
   title?: string;
   url?: string | null;
   analyzed_text?: string;
+  transformer_prediction?: TransformerPrediction;
 };
 type Analytics = {
   available: boolean;
@@ -182,16 +192,26 @@ export default function App() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [sources, setSources] = useState<Sources | null>(null);
   const [batchBusy, setBatchBusy] = useState(false);
+  const [transformerReady, setTransformerReady] = useState(false);
   useEffect(() => {
-    axios
-      .get(`${API}/health`)
-      .then((r) => {
-        setApiReady(true);
-        setModelReady(Boolean(r.data.model_ready));
-      })
-      .catch(() => {
-        setApiReady(false);
-      });
+    function checkHealth() {
+      axios
+        .get(`${API}/health`)
+        .then((r) => {
+          setApiReady(true);
+          setModelReady(Boolean(r.data.model_ready));
+          setTransformerReady(Boolean(r.data.transformer_ready));
+        })
+        .catch(() => {
+          setApiReady(false);
+          setModelReady(false);
+          setTransformerReady(false);
+        });
+    }
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 5000);
+
     axios
       .get(`${API}/analytics`)
       .then((r) => setAnalytics(r.data))
@@ -200,6 +220,8 @@ export default function App() {
       .get(`${API}/sources`)
       .then((r) => setSources(r.data))
       .catch(() => {});
+
+    return () => clearInterval(interval);
   }, []);
   async function analyze(e: FormEvent) {
     e.preventDefault();
@@ -313,6 +335,11 @@ export default function App() {
                   ? "Model training required"
                   : "Start the FastAPI server to connect."}
             </p>
+            {transformerReady && (
+              <p style={{ color: "#6ee7b7", marginTop: 4, fontSize: 11 }}>
+                DistilBERT loaded ✓
+              </p>
+            )}
             <div className="status-foot">
               <span>LOCAL ENVIRONMENT</span>
               <span className="mono">v1.0.0</span>
@@ -876,6 +903,113 @@ export default function App() {
                         <span>Model confidence: {(prediction.confidence * 100).toFixed(1)}%</span>
                       </div>
                     )}
+                    {/* ── Dual-model comparison card ── */}
+                    <section className="panel" style={{ marginBottom: 18 }}>
+                      <div className="panel-heading">
+                        <div>
+                          <div className="panel-overline">MODEL COMPARISON</div>
+                          <h3>TF-IDF + LR vs DistilBERT</h3>
+                        </div>
+                        <span className="subtle-badge">DUAL MODEL</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 8 }}>
+                        {/* Baseline LR card */}
+                        <div style={{
+                          background: predictionClass(prediction.label) === "FAKE" ? "rgba(255,120,60,0.08)" : "rgba(107,155,255,0.08)",
+                          border: `1.5px solid ${predictionClass(prediction.label) === "FAKE" ? "#ff7c3c55" : "#6b9bff55"}`,
+                          borderRadius: 12, padding: "16px 18px",
+                        }}>
+                          <div style={{ fontSize: 10, letterSpacing: "0.08em", color: "#7e8a9e", marginBottom: 6 }}>TF-IDF + LOGISTIC REGRESSION</div>
+                          <div style={{
+                            fontSize: 22, fontWeight: 700,
+                            color: predictionClass(prediction.label) === "FAKE" ? "#ff865e" : "#6b9bff",
+                          }}>
+                            {prediction.label.replace("-", " ")}
+                          </div>
+                          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <span style={{ color: "#7e8a9e" }}>Confidence</span>
+                              <b>{(prediction.confidence * 100).toFixed(1)}%</b>
+                            </div>
+                            <div style={{ height: 5, borderRadius: 3, background: "#1e2636", overflow: "hidden" }}>
+                              <div style={{
+                                height: "100%", width: `${prediction.confidence * 100}%`,
+                                background: predictionClass(prediction.label) === "FAKE" ? "#ff865e" : "#6b9bff",
+                                borderRadius: 3, transition: "width 0.6s ease"
+                              }} />
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#7e8a9e", marginTop: 2 }}>
+                              <span>Fake {(prediction.fake_probability * 100).toFixed(1)}%</span>
+                              <span>Real {(prediction.real_probability * 100).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* DistilBERT card */}
+                        {prediction.transformer_prediction ? (
+                          prediction.transformer_prediction.error ? (
+                            <div style={{
+                              background: "rgba(126,138,158,0.07)", border: "1.5px solid #30394a",
+                              borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "center"
+                            }}>
+                              <div style={{ fontSize: 10, letterSpacing: "0.08em", color: "#7e8a9e", marginBottom: 6 }}>DISTILBERT</div>
+                              <div style={{ color: "#7e8a9e", fontSize: 13 }}>Unavailable</div>
+                              <div style={{ fontSize: 11, color: "#5a6478", marginTop: 4 }}>{prediction.transformer_prediction.error}</div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              background: predictionClass(prediction.transformer_prediction.label) === "FAKE" ? "rgba(255,120,60,0.08)" : "rgba(107,155,255,0.08)",
+                              border: `1.5px solid ${predictionClass(prediction.transformer_prediction.label) === "FAKE" ? "#ff7c3c55" : "#6b9bff55"}`,
+                              borderRadius: 12, padding: "16px 18px",
+                            }}>
+                              <div style={{ fontSize: 10, letterSpacing: "0.08em", color: "#7e8a9e", marginBottom: 6 }}>DISTILBERT (FINE-TUNED)</div>
+                              <div style={{
+                                fontSize: 22, fontWeight: 700,
+                                color: predictionClass(prediction.transformer_prediction.label) === "FAKE" ? "#ff865e" : "#6b9bff",
+                              }}>
+                                {prediction.transformer_prediction.label.replace("-", " ")}
+                              </div>
+                              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                  <span style={{ color: "#7e8a9e" }}>Confidence</span>
+                                  <b>{prediction.transformer_prediction.confidence !== null ? `${((prediction.transformer_prediction.confidence ?? 0) * 100).toFixed(1)}%` : "—"}</b>
+                                </div>
+                                <div style={{ height: 5, borderRadius: 3, background: "#1e2636", overflow: "hidden" }}>
+                                  <div style={{
+                                    height: "100%",
+                                    width: `${((prediction.transformer_prediction.confidence ?? 0) * 100)}%`,
+                                    background: predictionClass(prediction.transformer_prediction.label) === "FAKE" ? "#ff865e" : "#6b9bff",
+                                    borderRadius: 3, transition: "width 0.6s ease"
+                                  }} />
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#7e8a9e", marginTop: 2 }}>
+                                  <span>Fake {prediction.transformer_prediction.fake_probability !== null ? `${((prediction.transformer_prediction.fake_probability ?? 0) * 100).toFixed(1)}%` : "—"}</span>
+                                  <span>Real {prediction.transformer_prediction.real_probability !== null ? `${((prediction.transformer_prediction.real_probability ?? 0) * 100).toFixed(1)}%` : "—"}</span>
+                                </div>
+                              </div>
+                              {predictionClass(prediction.label) !== predictionClass(prediction.transformer_prediction.label) && (
+                                <div style={{
+                                  marginTop: 10, padding: "6px 10px", borderRadius: 6,
+                                  background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)",
+                                  fontSize: 11, color: "#fbbf24", display: "flex", gap: 6, alignItems: "center"
+                                }}>
+                                  ⚠ Models disagree — review carefully.
+                                </div>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <div style={{
+                            background: "rgba(126,138,158,0.07)", border: "1.5px solid #30394a",
+                            borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "center"
+                          }}>
+                            <span style={{ color: "#5a6478", fontSize: 13 }}>DistilBERT not available</span>
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 11, color: "#5a6478", marginTop: 10 }}>
+                        Predictions are independent model estimates. Agreement increases confidence; disagreement warrants deeper review.
+                      </p>
+                    </section>
                     <section className="panel">
                       <div className="panel-heading">
                         <div>

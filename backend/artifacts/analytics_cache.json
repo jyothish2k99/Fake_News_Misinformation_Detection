@@ -1,0 +1,220 @@
+{
+  "available": true,
+  "total_articles": 20000,
+  "duplicate_rows_removed": 0,
+  "conflicting_duplicate_rows_excluded": 0,
+  "class_distribution": [
+    {
+      "label": "Real",
+      "count": 10000
+    },
+    {
+      "label": "Fake",
+      "count": 10000
+    }
+  ],
+  "subjects": [
+    {
+      "subject": "politicsNews",
+      "fake": 0,
+      "real": 5349
+    },
+    {
+      "subject": "News",
+      "fake": 5128,
+      "real": 0
+    },
+    {
+      "subject": "worldnews",
+      "fake": 0,
+      "real": 4651
+    },
+    {
+      "subject": "politics",
+      "fake": 3733,
+      "real": 0
+    },
+    {
+      "subject": "US_News",
+      "fake": 450,
+      "real": 0
+    },
+    {
+      "subject": "left-news",
+      "fake": 404,
+      "real": 0
+    },
+    {
+      "subject": "Government News",
+      "fake": 285,
+      "real": 0
+    }
+  ],
+  "topics": [
+    {
+      "category": "Politics & government",
+      "fake": 4422,
+      "real": 10000,
+      "total": 14422,
+      "fake_share": 0.3066
+    },
+    {
+      "category": "Other / uncategorized",
+      "fake": 5578,
+      "real": 0,
+      "total": 5578,
+      "fake_share": 1.0
+    }
+  ],
+  "monthly_trends": [
+    {
+      "month": "2016-01",
+      "fake": 0,
+      "real": 117
+    },
+    {
+      "month": "2016-02",
+      "fake": 0,
+      "real": 192
+    },
+    {
+      "month": "2016-03",
+      "fake": 0,
+      "real": 248
+    },
+    {
+      "month": "2016-04",
+      "fake": 0,
+      "real": 184
+    },
+    {
+      "month": "2016-05",
+      "fake": 0,
+      "real": 182
+    },
+    {
+      "month": "2016-06",
+      "fake": 0,
+      "real": 201
+    },
+    {
+      "month": "2016-07",
+      "fake": 0,
+      "real": 175
+    },
+    {
+      "month": "2016-08",
+      "fake": 0,
+      "real": 131
+    },
+    {
+      "month": "2016-09",
+      "fake": 0,
+      "real": 167
+    },
+    {
+      "month": "2016-10",
+      "fake": 0,
+      "real": 181
+    },
+    {
+      "month": "2016-11",
+      "fake": 0,
+      "real": 292
+    },
+    {
+      "month": "2016-12",
+      "fake": 0,
+      "real": 204
+    },
+    {
+      "month": "2017-01",
+      "fake": 0,
+      "real": 372
+    },
+    {
+      "month": "2017-02",
+      "fake": 0,
+      "real": 269
+    },
+    {
+      "month": "2017-03",
+      "fake": 0,
+      "real": 324
+    },
+    {
+      "month": "2017-04",
+      "fake": 0,
+      "real": 252
+    },
+    {
+      "month": "2017-05",
+      "fake": 0,
+      "real": 241
+    },
+    {
+      "month": "2017-06",
+      "fake": 0,
+      "real": 256
+    },
+    {
+      "month": "2017-07",
+      "fake": 0,
+      "real": 257
+    },
+    {
+      "month": "2017-08",
+      "fake": 0,
+      "real": 322
+    },
+    {
+      "month": "2017-09",
+      "fake": 0,
+      "real": 1368
+    },
+    {
+      "month": "2017-10",
+      "fake": 0,
+      "real": 1457
+    },
+    {
+      "month": "2017-11",
+      "fake": 0,
+      "real": 1478
+    },
+    {
+      "month": "2017-12",
+      "fake": 0,
+      "real": 1130
+    }
+  ],
+  "linguistic_comparison": [
+    {
+      "label": "Fake",
+      "avg_words": 442.7,
+      "avg_exclamations": 0.84,
+      "avg_capital_ratio": 8.66,
+      "avg_flesch_reading_ease": 46.75
+    },
+    {
+      "label": "Real",
+      "avg_words": 405.2,
+      "avg_exclamations": 0.06,
+      "avg_capital_ratio": 5.23,
+      "avg_flesch_reading_ease": 40.75
+    }
+  ],
+  "emotional_language_test": {
+    "metric": "Absolute VADER compound sentiment score (0-1); lexical emotional-language proxy",
+    "method": "Two-sided Mann\u2013Whitney U test for independent REAL- and FAKE-labeled articles (sample N=1000)",
+    "real_sample_size": 500,
+    "fake_sample_size": 500,
+    "real_median": 0.9053,
+    "fake_median": 0.9337,
+    "p_value": 0.001903327603632625,
+    "rank_biserial_effect_size": -0.1134,
+    "effect_magnitude": "negligible",
+    "interpretation": "REAL-labeled articles have lower emotional-language proxy scores than FAKE-labeled articles; distributions are statistically distinguishable at alpha=0.05. Effect magnitude: negligible.",
+    "assumptions": "Independent observations; descriptive of corpus sample."
+  }
+}

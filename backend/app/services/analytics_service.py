@@ -1,5 +1,6 @@
-from pathlib import Path
 from functools import lru_cache
+import json
+from pathlib import Path
 import pandas as pd
 import re
 from scipy.stats import mannwhitneyu
@@ -7,6 +8,7 @@ from textstat import textstat
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+CACHE_PATH = Path(__file__).resolve().parents[2] / "artifacts" / "analytics_cache.json"
 _SENTIMENT = SentimentIntensityAnalyzer()
 
 def load_labeled_data():
@@ -94,6 +96,14 @@ def _emotional_language_test(df):
 
 @lru_cache(maxsize=1)
 def summary():
+    if CACHE_PATH.exists():
+        try:
+            with open(CACHE_PATH, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+            if cached.get("available"):
+                return cached
+        except Exception:
+            pass
     df=load_labeled_data()
     if df.empty:
         return {"available":False,"message":"Add Fake.csv and True.csv to backend/data to enable analytics.","class_distribution":[],"subjects":[],"topics":[],"monthly_trends":[],"linguistic_comparison":[],"emotional_language_test":None}

@@ -4,3 +4,4 @@ __pycache__/
 artifacts/*.joblib
 artifacts/evidence_corpus.csv
 artifacts/model_metrics.json
+artifacts/transformer/

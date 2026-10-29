@@ -1,4 +1,9 @@
 from __future__ import annotations
+import os
+# Prevent OpenBLAS / OpenMP crashes when torch and scikit-learn coexist on Windows
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 from pathlib import Path
 import ipaddress
 import io, re
@@ -15,6 +20,7 @@ from .services.model_service import ModelService
 from .services.analytics_service import summary
 from .services.evidence_service import EvidenceService
 from .services.source_service import leaderboard, score_for_url
+from .services.transformer_service import TransformerService
 
 MAX_EXTRACT_BYTES = 2 * 1024 * 1024
 MAX_CSV_BYTES = 5 * 1024 * 1024
@@ -22,8 +28,24 @@ MAX_CSV_ROWS = 5000
 MAX_REDIRECTS = 5
 
 app=FastAPI(title="Misinformation Intelligence API",version="1.0.0",description="Baseline news classification, dataset analytics, related-article retrieval and source-history scoring.")
-app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173","http://127.0.0.1:5173"],allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
-model=ModelService(); evidence=EvidenceService()
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").rstrip("/")
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+if FRONTEND_ORIGIN:
+    ALLOWED_ORIGINS.append(FRONTEND_ORIGIN)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+model=ModelService(); evidence=EvidenceService(); transformer=TransformerService()
 
 class ArticleRequest(BaseModel):
     title: str = Field(default="",max_length=1000)
@@ -99,7 +121,14 @@ def _fetch_article(url: str) -> tuple[str, str, str]:
 
 @app.get("/api/health")
 def health():
-    return {"status":"ok","model_ready":model.ready,"model_metadata":model.metadata,"evidence_ready":evidence.vectorizer is not None}
+    return {
+        "status": "ok",
+        "model_ready": model.ready,
+        "model_metadata": model.metadata,
+        "evidence_ready": evidence.vectorizer is not None,
+        "transformer_ready": transformer.ready,
+        "transformer_error": transformer.load_error,
+    }
 
 @app.post("/api/predict")
 def predict(req: ArticleRequest):
@@ -120,6 +149,8 @@ def predict(req: ArticleRequest):
     result["analyzed_text"] = (title + " " + text).strip()
     result["evidence"] = evidence.search(title + " " + text, 3)
     result["source_credibility"] = score_for_url(extracted_url or source_url)
+    # DistilBERT prediction (independent of baseline; never alters baseline result)
+    result["transformer_prediction"] = transformer.predict(title, text)
     return result
 
 @app.get("/api/analytics")
@@ -159,9 +190,18 @@ async def batch(file: UploadFile=File(...)):
         title = "" if pd.isna(title_value) else str(title_value).strip()
         text = "" if pd.isna(text_value) else str(text_value).strip()
         if not (title + text).strip():
-            rows.append({"title": title, "text": text, "prediction": "UNABLE_TO_ANALYZE", "fake_probability": None, "real_probability": None, "confidence": None})
+            rows.append({
+                "title": title, "text": text,
+                "lr_prediction": "UNABLE_TO_ANALYZE", "lr_fake_probability": None, "lr_real_probability": None, "lr_confidence": None,
+                "distilbert_prediction": "UNABLE_TO_ANALYZE", "distilbert_fake_probability": None, "distilbert_real_probability": None, "distilbert_confidence": None,
+            })
             continue
-        prediction = model.predict(title, text)
-        rows.append({"title": title, "text": text, "prediction": prediction["label"], "fake_probability": prediction["fake_probability"], "real_probability": prediction["real_probability"], "confidence": prediction["confidence"]})
+        p_lr = model.predict(title, text)
+        p_tr = transformer.predict(title, text)
+        rows.append({
+            "title": title, "text": text,
+            "lr_prediction": p_lr["label"], "lr_fake_probability": p_lr["fake_probability"], "lr_real_probability": p_lr["real_probability"], "lr_confidence": p_lr["confidence"],
+            "distilbert_prediction": p_tr["label"], "distilbert_fake_probability": p_tr.get("fake_probability"), "distilbert_real_probability": p_tr.get("real_probability"), "distilbert_confidence": p_tr.get("confidence"),
+        })
     output = pd.DataFrame(rows).to_csv(index=False).encode("utf-8")
     return StreamingResponse(io.BytesIO(output), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=misinformation_batch_report.csv"})
